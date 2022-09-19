@@ -28,8 +28,9 @@ const MultiResource: NextPage = () => {
   const [ownedNfts, setOwnedNfts] = useState<
     { tokenId: number; owner: string; tokenUri: string }[]
   >([])
+  console.log(RMRKMultiResourceFactoryContractAddress)
   const factoryContract = useContract({
-    addressOrName: RMRKMultiResourceFactoryContractAddress,
+    addressOrName: RMRKMultiResourceFactoryContractAddress as string,
     contractInterface: abis.multiResourceFactoryAbi,
     signerOrProvider: signer,
   })
