@@ -72,24 +72,29 @@ const MultiResourceNftCollection: NextPage = () => {
         abis.multiResourceAbi,
         signer
       )
-      setIsOwner(
-        (await multiResourceContract.owner()) == (await signer.getAddress())
-      )
+      const owner = await multiResourceContract.owner()
+      const caller = await signer.getAddress()
+      setIsOwner(owner === caller)
       const nftSupply = await multiResourceContract.totalSupply()
-      for (let i = 0; i < nftSupply; i++) {
-        let isOwner = false
+      for (let i = 1; i <= nftSupply.toNumber(); i++) {
+        let isAssetOwner = false
+
         try {
-          isOwner =
-            (await multiResourceContract.connect(signer).ownerOf(i)) ==
-            (await signer.getAddress())
+          const assetOwner = await multiResourceContract
+            .connect(signer)
+            .ownerOf(i)
+          const caller = await signer.getAddress()
+          isAssetOwner = assetOwner === caller
         } catch (error) {
           console.log(error)
         }
-        if (isOwner) {
+        if (isAssetOwner) {
+          const owner = await signer.getAddress()
+          const tokenUri = await multiResourceContract.tokenURI(i)
           nfts.push({
             tokenId: i,
-            owner: await signer.getAddress(),
-            tokenUri: await multiResourceContract.tokenURI(i),
+            owner,
+            tokenUri,
           })
         }
       }

@@ -3,13 +3,17 @@ import type { NextPage } from "next"
 import Head from "next/head"
 import styles from "../styles/Home.module.css"
 import { useAccount, useContract, useProvider, useSigner } from "wagmi"
-import { Contract, Signer } from "ethers"
+import { BigNumber, Contract, ethers, Signer } from "ethers"
 import NftList from "../components/nft-list"
 import React, { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import abis from "../abis/abis"
-import { RMRKMultiResourceFactoryContractAddress } from "../constants"
+import {
+  registryContractDetails,
+  RMRKMultiResourceFactoryContractAddress,
+  tokenContractDetails,
+} from "../constants"
 
 const MultiResource: NextPage = () => {
   const provider = useProvider()
@@ -28,10 +32,19 @@ const MultiResource: NextPage = () => {
   const [ownedNfts, setOwnedNfts] = useState<
     { tokenId: number; owner: string; tokenUri: string }[]
   >([])
-  console.log(RMRKMultiResourceFactoryContractAddress)
   const factoryContract = useContract({
     addressOrName: RMRKMultiResourceFactoryContractAddress as string,
     contractInterface: abis.multiResourceFactoryAbi,
+    signerOrProvider: signer,
+  })
+
+  const tokenContract = useContract({
+    ...tokenContractDetails,
+    signerOrProvider: signer,
+  })
+
+  const registryContract = useContract({
+    ...registryContractDetails,
     signerOrProvider: signer,
   })
 
@@ -62,27 +75,35 @@ const MultiResource: NextPage = () => {
   async function getOwnedNfts() {
     const nfts = []
 
-    if (signer instanceof Signer) {
+    if (
+      signer instanceof Signer &&
+      ethers.utils.isAddress(currentRmrkDeployment)
+    ) {
       const multiResourceContract = new Contract(
         currentRmrkDeployment,
         abis.multiResourceAbi,
         signer
       )
+
       const nftSupply = await multiResourceContract.totalSupply()
-      for (let i = 0; i < nftSupply; i++) {
-        let isOwner = false
+      for (let i = 1; i <= nftSupply.toNumber(); i++) {
+        let isAssetOwner = false
         try {
-          isOwner =
-            (await multiResourceContract.connect(signer).ownerOf(i)) ==
-            (await signer.getAddress())
+          const assetOwner = await multiResourceContract
+            .connect(signer)
+            .ownerOf(i)
+          const caller = await signer.getAddress()
+          isAssetOwner = assetOwner === caller
         } catch (error) {
           console.log(error)
         }
-        if (isOwner) {
+        if (isAssetOwner) {
+          const owner = await signer.getAddress()
+          const tokenUri = await multiResourceContract.tokenURI(i)
           nfts.push({
             tokenId: i,
-            owner: await signer.getAddress(),
-            tokenUri: await multiResourceContract.tokenURI(i),
+            owner,
+            tokenUri,
           })
         }
       }
@@ -92,18 +113,20 @@ const MultiResource: NextPage = () => {
 
   async function mintNft() {
     if (signer instanceof Signer) {
+      const caller = await signer.getAddress()
       const multiResourceContract = new Contract(
         currentRmrkDeployment,
         abis.multiResourceAbi,
         signer
       )
-
+      const value = await multiResourceContract.pricePerMint()
       const options = {
-        value: multiResourceContract.pricePerMint(),
+        value,
       }
+      console.log(options)
       const tx = await multiResourceContract
         .connect(signer)
-        .mint(await signer.getAddress(), 1, options)
+        .mint(caller, 1, options)
 
       addRecentTransaction({
         hash: tx.hash,
@@ -115,6 +138,20 @@ const MultiResource: NextPage = () => {
 
   async function deployNft() {
     if (signer instanceof Signer) {
+      const caller = await signer.getAddress()
+      const deposit: BigNumber =
+        await registryContract.getCollectionListingFee()
+      const allowance: BigNumber = await tokenContract.allowance(
+        caller,
+        RMRKMultiResourceFactoryContractAddress
+      )
+      if (allowance.lt(deposit)) {
+        const approveTransactionResponse = await tokenContract.approve(
+          RMRKMultiResourceFactoryContractAddress,
+          deposit
+        )
+        await approveTransactionResponse.wait()
+      }
       const tx = await factoryContract
         .connect(signer)
         .deployRMRKMultiResource(
@@ -132,7 +169,8 @@ const MultiResource: NextPage = () => {
       })
 
       const receipt = await tx.wait()
-      setCurrentRmrkDeployment(receipt.events[1].args[0])
+      //Fix
+      //setCurrentRmrkDeployment(receipt.events[1].args[0])
     }
   }
 
@@ -171,7 +209,6 @@ const MultiResource: NextPage = () => {
     setLoading(true)
     fetchData()
   }, [signer, currentRmrkDeployment])
-
   return (
     <div className={styles.container}>
       <Head>
@@ -267,7 +304,7 @@ const MultiResource: NextPage = () => {
               return (
                 <div
                   key={index}
-                  className="card-compact hover:bg-accent-content/5"
+                  className="card-compact hover:bg-accent-content/5 p-2 rounded-md items-center flex"
                 >
                   <input
                     type="radio"

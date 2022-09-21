@@ -10,9 +10,11 @@ export default function Resource(props: {
     <div>
       <p>Resource ID: {props.resource + ""}</p>
       <p className="text-sm mt-1">Token URI:</p>
-      <code className="text-sm mb-10">
-        {props.strings[props.index][1] + ""}
-      </code>
+      {props.strings[props.index] && (
+        <code className="text-sm mb-10 break-words">
+          {props.strings[props.index][1] + ""}
+        </code>
+      )}
       <br />
       <Image
         src={"https://ipfs.io/ipfs/" + props.strings[props.index][1]}
