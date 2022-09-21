@@ -123,7 +123,6 @@ const MultiResource: NextPage = () => {
       const options = {
         value,
       }
-      console.log(options)
       const tx = await multiResourceContract
         .connect(signer)
         .mint(caller, 1, options)
@@ -169,8 +168,7 @@ const MultiResource: NextPage = () => {
       })
 
       const receipt = await tx.wait()
-      //Fix
-      //setCurrentRmrkDeployment(receipt.events[1].args[0])
+      setCurrentRmrkDeployment(receipt.events[1].address)
     }
   }
 
@@ -179,7 +177,6 @@ const MultiResource: NextPage = () => {
       const collections: string[] = []
       const allCollectionDeployments = await factoryContract.getCollections()
       for (let i = 0; i < allCollectionDeployments.length; i++) {
-        console.log(allCollectionDeployments[i])
         const collection = new Contract(
           allCollectionDeployments[i],
           abis.multiResourceAbi,
@@ -209,6 +206,7 @@ const MultiResource: NextPage = () => {
     setLoading(true)
     fetchData()
   }, [signer, currentRmrkDeployment])
+
   return (
     <div className={styles.container}>
       <Head>
@@ -285,7 +283,7 @@ const MultiResource: NextPage = () => {
 
         <button
           onClick={() => {
-            deployNft().then((r) => fetchData())
+            deployNft()
           }}
           className="btn btn-wide btn-primary"
         >
@@ -312,6 +310,7 @@ const MultiResource: NextPage = () => {
                     className="radio checked:bg-red-500"
                     value={index}
                     onChange={handleContractSelection}
+                    checked={contract === currentRmrkDeployment}
                   />
 
                   <Link href={"/contract/" + contract}>
