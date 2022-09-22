@@ -3,7 +3,7 @@ import type { NextPage } from "next"
 import Head from "next/head"
 import styles from "../styles/Home.module.css"
 import { useAccount, useContract, useProvider, useSigner } from "wagmi"
-import { BigNumber, Contract, ethers, Signer } from "ethers"
+import { Contract, Signer } from "ethers"
 import NftList from "../components/nft-list"
 import React, { useEffect, useState } from "react"
 import Image from "next/image"
@@ -14,8 +14,7 @@ import {
   RMRKMultiResourceFactoryContractAddress,
   tokenContractDetails,
 } from "../constants"
-import { deployContract } from "../lib/transactions/deploy-contract"
-import { mintNft } from "../lib/transactions/mint-nft"
+import { deployContract, getOwnedNfts, mintNft } from "../lib/transactions"
 
 const MultiResource: NextPage = () => {
   const provider = useProvider()
@@ -74,6 +73,7 @@ const MultiResource: NextPage = () => {
       addRecentTransaction,
     }).then(() => fetchData())
   }
+
   function handleNameInput(e: React.ChangeEvent<HTMLInputElement>) {
     setNameInput(e.target.value)
   }
@@ -98,45 +98,6 @@ const MultiResource: NextPage = () => {
     setCurrentRmrkDeployment(rmrkCollections[Number(e.target.value)])
   }
 
-  async function getOwnedNfts() {
-    const nfts = []
-
-    if (
-      signer instanceof Signer &&
-      ethers.utils.isAddress(currentRmrkDeployment)
-    ) {
-      const multiResourceContract = new Contract(
-        currentRmrkDeployment,
-        abis.multiResourceAbi,
-        signer
-      )
-
-      const nftSupply = await multiResourceContract.totalSupply()
-      for (let i = 1; i <= nftSupply.toNumber(); i++) {
-        let isAssetOwner = false
-        try {
-          const assetOwner = await multiResourceContract
-            .connect(signer)
-            .ownerOf(i)
-          const caller = await signer.getAddress()
-          isAssetOwner = assetOwner === caller
-        } catch (error) {
-          console.log(error)
-        }
-        if (isAssetOwner) {
-          const owner = await signer.getAddress()
-          const tokenUri = await multiResourceContract.tokenURI(i)
-          nfts.push({
-            tokenId: i,
-            owner,
-            tokenUri,
-          })
-        }
-      }
-    }
-    return nfts
-  }
-
   async function queryCollections() {
     if (signer instanceof Signer) {
       const collections: string[] = []
@@ -156,14 +117,16 @@ const MultiResource: NextPage = () => {
     }
   }
 
-  function fetchData() {
+  const fetchData = () => {
     queryCollections().then((r) => {
       setLoading(false)
     })
     if (currentRmrkDeployment.length > 0)
-      getOwnedNfts().then((nfts) => {
-        setOwnedNfts(nfts)
-      })
+      getOwnedNfts({ signer, contractAddress: currentRmrkDeployment }).then(
+        (nfts) => {
+          setOwnedNfts(nfts)
+        }
+      )
   }
 
   useEffect(() => {
