@@ -15,6 +15,7 @@ import {
   tokenContractDetails,
 } from "../constants"
 import { deployContract } from "../lib/transactions/deploy-contract"
+import { mintNft } from "../lib/transactions/mint-nft"
 
 const MultiResource: NextPage = () => {
   const provider = useProvider()
@@ -66,6 +67,13 @@ const MultiResource: NextPage = () => {
     }).then((receipt) => setCurrentRmrkDeployment(receipt.events[1].address))
   }
 
+  const onMint = () => {
+    mintNft({
+      signer,
+      contractAddress: currentRmrkDeployment,
+      addRecentTransaction,
+    }).then(() => fetchData())
+  }
   function handleNameInput(e: React.ChangeEvent<HTMLInputElement>) {
     setNameInput(e.target.value)
   }
@@ -127,30 +135,6 @@ const MultiResource: NextPage = () => {
       }
     }
     return nfts
-  }
-
-  async function mintNft() {
-    if (signer instanceof Signer) {
-      const caller = await signer.getAddress()
-      const multiResourceContract = new Contract(
-        currentRmrkDeployment,
-        abis.multiResourceAbi,
-        signer
-      )
-      const value = await multiResourceContract.pricePerMint()
-      const options = {
-        value,
-      }
-      const tx = await multiResourceContract
-        .connect(signer)
-        .mint(caller, 1, options)
-
-      addRecentTransaction({
-        hash: tx.hash,
-        description: "Minting a new RMRK NFT",
-        confirmations: 1,
-      })
-    }
   }
 
   async function queryCollections() {
@@ -311,12 +295,7 @@ const MultiResource: NextPage = () => {
             <p className="mb-4 mt-5">
               Mint an NFT to be able to attach multiple resources to it:
             </p>
-            <button
-              onClick={() => {
-                mintNft().then((r) => fetchData())
-              }}
-              className="btn btn-wide btn-primary"
-            >
+            <button onClick={onMint} className="btn btn-wide btn-primary">
               Mint NFT
             </button>
             <p className="mt-5">
