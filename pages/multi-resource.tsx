@@ -2,8 +2,7 @@ import { ConnectButton, useAddRecentTransaction } from "@rainbow-me/rainbowkit"
 import type { NextPage } from "next"
 import Head from "next/head"
 import styles from "../styles/Home.module.css"
-import { useAccount, useContract, useProvider, useSigner } from "wagmi"
-import { Contract, Signer } from "ethers"
+import { useContract, useSigner } from "wagmi"
 import NftList from "../components/nft-list"
 import React, { useEffect, useState } from "react"
 import Image from "next/image"
@@ -14,12 +13,15 @@ import {
   RMRKMultiResourceFactoryContractAddress,
   tokenContractDetails,
 } from "../constants"
-import { deployContract, getOwnedNfts, mintNft } from "../lib/transactions"
+import {
+  deployContract,
+  getCollections,
+  getOwnedNfts,
+  mintNft,
+} from "../lib/transactions"
 
 const MultiResource: NextPage = () => {
-  const provider = useProvider()
-  const { data: signer, isSuccess } = useSigner()
-  const { address, isConnected } = useAccount()
+  const { data: signer } = useSigner()
   const addRecentTransaction = useAddRecentTransaction()
   const [currentRmrkDeployment, setCurrentRmrkDeployment] = useState<string>("")
   const [rmrkCollections, setRmrkCollections] = useState<string[]>([])
@@ -98,28 +100,10 @@ const MultiResource: NextPage = () => {
     setCurrentRmrkDeployment(rmrkCollections[Number(e.target.value)])
   }
 
-  async function queryCollections() {
-    if (signer instanceof Signer) {
-      const collections: string[] = []
-      const allCollectionDeployments = await factoryContract.getCollections()
-      for (let i = 0; i < allCollectionDeployments.length; i++) {
-        const collection = new Contract(
-          allCollectionDeployments[i],
-          abis.multiResourceAbi,
-          provider
-        )
-        if ((await collection.owner()) == address) {
-          collections.push(allCollectionDeployments[i])
-        }
-      }
-
-      setRmrkCollections(collections)
-    }
-  }
-
   const fetchData = () => {
-    queryCollections().then((r) => {
+    getCollections({ signer, factoryContract }).then((collections) => {
       setLoading(false)
+      setRmrkCollections(collections)
     })
     if (currentRmrkDeployment.length > 0)
       getOwnedNfts({ signer, contractAddress: currentRmrkDeployment }).then(
