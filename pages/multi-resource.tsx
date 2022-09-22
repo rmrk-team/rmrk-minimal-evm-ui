@@ -14,6 +14,7 @@ import {
   RMRKMultiResourceFactoryContractAddress,
   tokenContractDetails,
 } from "../constants"
+import { deployContract } from "../lib/transactions/deploy-contract"
 
 const MultiResource: NextPage = () => {
   const provider = useProvider()
@@ -47,6 +48,23 @@ const MultiResource: NextPage = () => {
     ...registryContractDetails,
     signerOrProvider: signer,
   })
+
+  const onSubmit = () => {
+    deployContract({
+      signer,
+      registryContract,
+      tokenContract,
+      factoryContract,
+      addRecentTransaction,
+      data: {
+        nameInput,
+        symbolInput,
+        maxSupplyInput,
+        priceInput,
+        collectionMetadataInput,
+      },
+    }).then((receipt) => setCurrentRmrkDeployment(receipt.events[1].address))
+  }
 
   function handleNameInput(e: React.ChangeEvent<HTMLInputElement>) {
     setNameInput(e.target.value)
@@ -132,43 +150,6 @@ const MultiResource: NextPage = () => {
         description: "Minting a new RMRK NFT",
         confirmations: 1,
       })
-    }
-  }
-
-  async function deployNft() {
-    if (signer instanceof Signer) {
-      const caller = await signer.getAddress()
-      const deposit: BigNumber =
-        await registryContract.getCollectionListingFee()
-      const allowance: BigNumber = await tokenContract.allowance(
-        caller,
-        RMRKMultiResourceFactoryContractAddress
-      )
-      if (allowance.lt(deposit)) {
-        const approveTransactionResponse = await tokenContract.approve(
-          RMRKMultiResourceFactoryContractAddress,
-          deposit
-        )
-        await approveTransactionResponse.wait()
-      }
-      const tx = await factoryContract
-        .connect(signer)
-        .deployRMRKMultiResource(
-          nameInput,
-          symbolInput,
-          maxSupplyInput,
-          priceInput,
-          collectionMetadataInput
-        )
-
-      addRecentTransaction({
-        hash: tx.hash,
-        description: "Deploying a new RMRK NFT contract",
-        confirmations: 1,
-      })
-
-      const receipt = await tx.wait()
-      setCurrentRmrkDeployment(receipt.events[1].address)
     }
   }
 
@@ -281,12 +262,7 @@ const MultiResource: NextPage = () => {
           ></input>
         </div>
 
-        <button
-          onClick={() => {
-            deployNft()
-          }}
-          className="btn btn-wide btn-primary"
-        >
+        <button onClick={onSubmit} className="btn btn-wide btn-primary">
           Deploy NFT contract
         </button>
 
