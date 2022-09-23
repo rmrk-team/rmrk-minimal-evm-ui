@@ -64,14 +64,32 @@ const MultiResource: NextPage = () => {
   })
 
   const onSubmit = (collectionFields: CollectionFormFields) => {
+    const {
+      nameInput,
+      symbolInput,
+      maxSupplyInput,
+      priceInput,
+      collectionMetadataInput,
+    } = collectionFields
+
     deployContract({
       signer,
       registryContract,
       tokenContract,
-      factoryContract,
+      callFactory: () =>
+        factoryContract
+          .connect(signer)
+          .deployRMRKMultiResource(
+            nameInput,
+            symbolInput,
+            maxSupplyInput,
+            priceInput,
+            collectionMetadataInput
+          ),
       addRecentTransaction,
-      data: { ...collectionFields },
-    }).then((receipt) => setCurrentRmrkDeployment(receipt.events[1].address))
+    }).then((receipt) =>
+      setCurrentRmrkDeployment(receipt?.events ? receipt.events[1].address : "")
+    )
   }
 
   const onMint = () => {
@@ -92,11 +110,13 @@ const MultiResource: NextPage = () => {
       setRmrkCollections(collections)
     })
     if (currentRmrkDeployment.length > 0)
-      getOwnedNfts({ signer, contractAddress: currentRmrkDeployment }).then(
-        (nfts) => {
-          setOwnedNfts(nfts)
-        }
-      )
+      getOwnedNfts({
+        signer,
+        contractAddress: currentRmrkDeployment,
+        abi: abis.multiResourceAbi,
+      }).then((nfts) => {
+        setOwnedNfts(nfts)
+      })
   }
 
   useEffect(() => {

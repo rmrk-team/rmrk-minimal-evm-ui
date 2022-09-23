@@ -1,25 +1,22 @@
 import { NewTransaction } from '@rainbow-me/rainbowkit/dist/transactions/transactionStore';
-import { BigNumber, Contract, ethers, Signer } from 'ethers';
+import { BigNumber, Contract, ContractTransaction, ethers, Signer } from 'ethers';
 import { RMRKMultiResourceFactoryContractAddress } from '../../constants';
 
 interface IProps {
   signer?: ethers.Signer | null;
   registryContract: Contract;
   tokenContract: Contract;
-  factoryContract: Contract;
+  callFactory: () => Promise<ContractTransaction>;
   addRecentTransaction: (transaction: NewTransaction) => void;
-  data: { [key: string]: string | number };
 }
 
 export async function deployContract({
   signer,
   registryContract,
   tokenContract,
-  factoryContract,
+  callFactory,
   addRecentTransaction,
-  data,
 }: IProps) {
-  const { nameInput, symbolInput, maxSupplyInput, priceInput, collectionMetadataInput } = data;
   if (signer instanceof Signer) {
     const caller = await signer.getAddress();
     const deposit: BigNumber = await registryContract.getCollectionListingFee();
@@ -34,15 +31,8 @@ export async function deployContract({
       );
       await approveTransactionResponse.wait();
     }
-    const tx = await factoryContract
-      .connect(signer)
-      .deployRMRKMultiResource(
-        nameInput,
-        symbolInput,
-        maxSupplyInput,
-        priceInput,
-        collectionMetadataInput,
-      );
+
+    const tx = await callFactory();
 
     addRecentTransaction({
       hash: tx.hash,
