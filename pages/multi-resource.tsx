@@ -19,6 +19,23 @@ import {
   getOwnedNfts,
   mintNft,
 } from "../lib/transactions"
+import { Field, Formik, Form } from "formik"
+
+interface CollectionFormFields {
+  nameInput: string
+  symbolInput: string
+  collectionMetadataInput?: string
+  maxSupplyInput: number
+  priceInput: number
+}
+
+const initialValues: CollectionFormFields = {
+  nameInput: "Test Collection",
+  symbolInput: "TEST",
+  collectionMetadataInput: "",
+  maxSupplyInput: 10000,
+  priceInput: 0,
+}
 
 const MultiResource: NextPage = () => {
   const { data: signer } = useSigner()
@@ -26,15 +43,10 @@ const MultiResource: NextPage = () => {
   const [currentRmrkDeployment, setCurrentRmrkDeployment] = useState<string>("")
   const [rmrkCollections, setRmrkCollections] = useState<string[]>([])
   const [loading, setLoading] = useState<boolean>(true)
-  const [nameInput, setNameInput] = useState<string>("Test Collection")
-  const [symbolInput, setSymbolInput] = useState<string>("TEST")
-  const [collectionMetadataInput, setCollectionMetadataInput] =
-    useState<string>("")
-  const [maxSupplyInput, setSupplyInput] = useState<number>(10000)
-  const [priceInput, setPriceInput] = useState<number>(0)
   const [ownedNfts, setOwnedNfts] = useState<
     { tokenId: number; owner: string; tokenUri: string }[]
   >([])
+
   const factoryContract = useContract({
     addressOrName: RMRKMultiResourceFactoryContractAddress as string,
     contractInterface: abis.multiResourceFactoryAbi,
@@ -51,20 +63,14 @@ const MultiResource: NextPage = () => {
     signerOrProvider: signer,
   })
 
-  const onSubmit = () => {
+  const onSubmit = (collectionFields: CollectionFormFields) => {
     deployContract({
       signer,
       registryContract,
       tokenContract,
       factoryContract,
       addRecentTransaction,
-      data: {
-        nameInput,
-        symbolInput,
-        maxSupplyInput,
-        priceInput,
-        collectionMetadataInput,
-      },
+      data: { ...collectionFields },
     }).then((receipt) => setCurrentRmrkDeployment(receipt.events[1].address))
   }
 
@@ -76,27 +82,7 @@ const MultiResource: NextPage = () => {
     }).then(() => fetchData())
   }
 
-  function handleNameInput(e: React.ChangeEvent<HTMLInputElement>) {
-    setNameInput(e.target.value)
-  }
-
-  function handleSymbolInput(e: React.ChangeEvent<HTMLInputElement>) {
-    setSymbolInput(e.target.value)
-  }
-
-  function handleMetadataInput(e: React.ChangeEvent<HTMLInputElement>) {
-    setCollectionMetadataInput(e.target.value)
-  }
-
-  function handleMaxSupplyInput(e: React.ChangeEvent<HTMLInputElement>) {
-    setSupplyInput(Number(e.target.value))
-  }
-
-  function handlePriceInput(e: React.ChangeEvent<HTMLInputElement>) {
-    setPriceInput(Number(e.target.value))
-  }
-
-  function handleContractSelection(e: React.ChangeEvent<HTMLInputElement>) {
+  const handleContractSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCurrentRmrkDeployment(rmrkCollections[Number(e.target.value)])
   }
 
@@ -132,71 +118,66 @@ const MultiResource: NextPage = () => {
 
       <main className={styles.main}>
         <ConnectButton />
-
         <h1 className={styles.title}>Multi-resource Demo</h1>
-
         <p className="mb-4">
           Create a new NFT collection contract so you can add your own set of
           resources to it:
         </p>
+        <Formik initialValues={initialValues} onSubmit={onSubmit}>
+          <Form>
+            <div className="form-control w-full max-w-xs mb-2">
+              <label className="label">
+                <span className="label-text">Collection Name</span>
+              </label>
+              <Field
+                inputMode="text"
+                placeholder="Name"
+                className="input input-bordered w-full max-w-xs my-0.5"
+                name="nameInput"
+              ></Field>
+              <label className="label">
+                <span className="label-text">Collection Symbol</span>
+              </label>
+              <Field
+                inputMode="text"
+                placeholder="Symbol"
+                className="input input-bordered w-full max-w-xs my-0.5"
+                name="symbolInput"
+              ></Field>
+              <label className="label">
+                <span className="label-text">Max NFT Supply</span>
+              </label>
+              <Field
+                inputMode="numeric"
+                placeholder="Max supply"
+                className="input input-bordered w-full max-w-xs my-0.5"
+                name="maxSupplyInput"
+              ></Field>
+              <label className="label">
+                <span className="label-text">Price per NFT mint (in wei)</span>
+              </label>
+              <Field
+                inputMode="numeric"
+                placeholder="Price"
+                className="input input-bordered w-full max-w-xs my-0.5"
+                name="priceInput"
+              ></Field>
+              <label className="label">
+                <span className="label-text">Collection Metadata URI</span>
+              </label>
+              <Field
+                inputMode="text"
+                placeholder="Collection metadata URI"
+                className="input input-bordered w-full max-w-xs my-0.5"
+                name="collectionMetadataInput"
+              ></Field>
+            </div>
 
-        <div className="form-control w-full max-w-xs mb-2">
-          <label className="label">
-            <span className="label-text">Collection Name</span>
-          </label>
-          <input
-            inputMode="text"
-            placeholder="Name"
-            className="input input-bordered w-full max-w-xs my-0.5"
-            value={nameInput}
-            onChange={handleNameInput}
-          ></input>
-          <label className="label">
-            <span className="label-text">Collection Symbol</span>
-          </label>
-          <input
-            inputMode="text"
-            placeholder="Symbol"
-            className="input input-bordered w-full max-w-xs my-0.5"
-            value={symbolInput}
-            onChange={handleSymbolInput}
-          ></input>
-          <label className="label">
-            <span className="label-text">Max NFT Supply</span>
-          </label>
-          <input
-            inputMode="numeric"
-            placeholder="Max supply"
-            className="input input-bordered w-full max-w-xs my-0.5"
-            value={maxSupplyInput}
-            onChange={handleMaxSupplyInput}
-          ></input>
-          <label className="label">
-            <span className="label-text">Price per NFT mint (in wei)</span>
-          </label>
-          <input
-            inputMode="numeric"
-            placeholder="Price"
-            className="input input-bordered w-full max-w-xs my-0.5"
-            value={priceInput}
-            onChange={handlePriceInput}
-          ></input>
-          <label className="label">
-            <span className="label-text">Collection Metadata URI</span>
-          </label>
-          <input
-            inputMode="text"
-            placeholder="Collection metadata URI"
-            className="input input-bordered w-full max-w-xs my-0.5"
-            value={collectionMetadataInput}
-            onChange={handleMetadataInput}
-          ></input>
-        </div>
-
-        <button onClick={onSubmit} className="btn btn-wide btn-primary">
-          Deploy NFT contract
-        </button>
-
+            <button type="submit" className="btn btn-wide btn-primary">
+              Deploy NFT contract
+            </button>
+          </Form>
+        </Formik>
         <p className="mt-5">
           Your RMRK NFT Contract will be deployed on the Moonbase Alpha testnet.{" "}
         </p>
