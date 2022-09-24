@@ -105,7 +105,7 @@ const Equippable: NextPage = () => {
         signer,
         contractAddress: currentRmrkDeployment,
         abi: abis.equippableImplAbi,
-      }).then((nfts) => {
+      }).then(({ nfts }) => {
         setOwnedNfts(nfts)
       })
   }

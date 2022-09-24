@@ -1,6 +1,4 @@
 import { Contract, ethers, Signer } from 'ethers';
-import abis from '../../abis/abis';
-import { AbiItem } from '../types';
 
 interface IProps {
   signer?: ethers.Signer | null;
@@ -8,12 +6,14 @@ interface IProps {
   abi: ethers.ContractInterface;
 }
 
-export async function getOwnedNfts({ signer, contractAddress, abi }: IProps) {
+export const getOwnedNfts = async ({ signer, contractAddress, abi }: IProps) => {
   const nfts = [];
-
+  let isContractOwner = false;
   if (signer instanceof Signer && ethers.utils.isAddress(contractAddress)) {
     const multiResourceContract = new Contract(contractAddress, abi, signer);
-
+    const owner = await multiResourceContract.owner();
+    const caller = await signer.getAddress();
+    if (owner === caller) isContractOwner = true;
     const nftSupply = await multiResourceContract.totalSupply();
     for (let i = 1; i <= nftSupply.toNumber(); i++) {
       let isAssetOwner = false;
@@ -35,5 +35,5 @@ export async function getOwnedNfts({ signer, contractAddress, abi }: IProps) {
       }
     }
   }
-  return nfts;
-}
+  return { nfts, isContractOwner };
+};
