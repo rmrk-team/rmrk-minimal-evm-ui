@@ -114,7 +114,7 @@ const MultiResource: NextPage = () => {
         signer,
         contractAddress: currentRmrkDeployment,
         abi: abis.multiResourceAbi,
-      }).then((nfts) => {
+      }).then(({ nfts }) => {
         setOwnedNfts(nfts)
       })
   }

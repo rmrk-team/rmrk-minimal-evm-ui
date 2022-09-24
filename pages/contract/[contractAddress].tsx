@@ -10,6 +10,12 @@ import Head from "next/head"
 import Resource from "../../components/resource"
 import abis from "../../abis/abis"
 import AddResourceToCollection from "../../components/add-resource"
+import {
+  fetchNftCollection,
+  getOwnedNfts,
+  mintNft,
+} from "../../lib/transactions"
+import { addResource } from "../../lib/transactions"
 
 const MultiResourceNftCollection: NextPage = () => {
   const router = useRouter()
@@ -32,123 +38,60 @@ const MultiResourceNftCollection: NextPage = () => {
     console.log(currentRmrkDeployment)
     if (ethers.utils.isAddress(contractAddress as string)) {
       setCurrentRmrkDeployment(contractAddress as string)
-      fetchNftCollection().then(() => {})
-      getOwnedNfts().then((nfts) => {
+      fetchNftCollection({
+        signer,
+        contractAddress: currentRmrkDeployment,
+        abi: abis.multiResourceAbi,
+      }).then(() => {})
+      getOwnedNfts({
+        signer,
+        contractAddress: currentRmrkDeployment,
+        abi: abis.multiResourceAbi,
+      }).then(({ nfts, isContractOwner }) => {
+        setIsOwner(isContractOwner)
         setOwnedNfts(nfts)
       })
     }
   }, [signer, contractAddress])
 
-  async function fetchNftCollection() {
-    if (signer instanceof Signer) {
-      multiResourceContract = new Contract(
-        contractAddress as string,
-        abis.multiResourceAbi,
-        signer
-      )
-      const name: string = await multiResourceContract.name()
-      const allResources: string[] =
-        await multiResourceContract.getAllResources()
-      const allData: string[] = []
-      for (const r of allResources) {
-        const resourceData = await multiResourceContract.getResource(r)
-        allData.push(resourceData)
-      }
-      setAllResourcesData(allData)
-      setResources(allResources)
-      setCollectionName(name)
-    }
-  }
-
-  async function getOwnedNfts() {
-    const nfts = []
-
-    if (
-      signer instanceof Signer &&
-      ethers.utils.isAddress(currentRmrkDeployment)
-    ) {
-      multiResourceContract = new Contract(
-        currentRmrkDeployment,
-        abis.multiResourceAbi,
-        signer
-      )
-      const owner = await multiResourceContract.owner()
-      const caller = await signer.getAddress()
-      setIsOwner(owner === caller)
-      const nftSupply = await multiResourceContract.totalSupply()
-      for (let i = 1; i <= nftSupply.toNumber(); i++) {
-        let isAssetOwner = false
-
-        try {
-          const assetOwner = await multiResourceContract
-            .connect(signer)
-            .ownerOf(i)
-          const caller = await signer.getAddress()
-          isAssetOwner = assetOwner === caller
-        } catch (error) {
-          console.log(error)
-        }
-        if (isAssetOwner) {
-          const owner = await signer.getAddress()
-          const tokenUri = await multiResourceContract.tokenURI(i)
-          nfts.push({
-            tokenId: i,
-            owner,
-            tokenUri,
-          })
-        }
-      }
-    }
-    return nfts
-  }
-
-  async function mintNft() {
-    if (
-      signer instanceof Signer &&
-      ethers.utils.isAddress(currentRmrkDeployment)
-    ) {
-      multiResourceContract = new Contract(
-        currentRmrkDeployment,
-        abis.multiResourceAbi,
-        signer
-      )
-
-      const options = {
-        value: multiResourceContract.pricePerMint(),
-      }
-      const tx = await multiResourceContract
-        .connect(signer)
-        .mint(await signer.getAddress(), 1, options)
-
-      addRecentTransaction({
-        hash: tx.hash,
-        description: "Minting a new RMRK NFT",
-        confirmations: 1,
+  const onAddResource = () => {
+    addResource({
+      signer,
+      contractAddress: currentRmrkDeployment,
+      abi: abis.multiResourceAbi,
+      addRecentTransaction,
+      resourceInput,
+    }).then(() => {
+      fetchNftCollection({
+        signer,
+        contractAddress: currentRmrkDeployment,
+        abi: abis.multiResourceAbi,
+      }).then(({ allData, allResources, name }) => {
+        setAllResourcesData(allData)
+        setResources(allResources)
+        setCollectionName(name)
       })
-      await tx.wait(1)
-    }
+    })
   }
 
-  async function addResource() {
-    if (signer instanceof Signer) {
-      multiResourceContract = new Contract(
-        currentRmrkDeployment,
-        abis.multiResourceAbi,
-        signer
-      )
-      const tx = await multiResourceContract
-        .connect(signer)
-        .addResourceEntry(resourceInput)
-      addRecentTransaction({
-        hash: tx.hash,
-        description: "Adding a new resource to collection",
-        confirmations: 1,
+  const onMint = () => {
+    mintNft({
+      signer,
+      contractAddress: currentRmrkDeployment,
+      addRecentTransaction,
+    }).then(() =>
+      getOwnedNfts({
+        signer,
+        contractAddress: currentRmrkDeployment,
+        abi: abis.multiResourceAbi,
+      }).then(({ nfts, isContractOwner }) => {
+        setIsOwner(isContractOwner)
+        setOwnedNfts(nfts)
       })
-      await tx.wait(1)
-    }
+    )
   }
 
-  function handleResourceInput(e: React.ChangeEvent<HTMLInputElement>) {
+  const handleResourceInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setResourceInput(e.target.value)
   }
 
@@ -180,12 +123,7 @@ const MultiResourceNftCollection: NextPage = () => {
         <p className="mb-4 mt-5">
           Mint an NFT to be able to attach multiple resources to it:
         </p>
-        <button
-          onClick={() => {
-            mintNft().then((r) => getOwnedNfts())
-          }}
-          className="btn btn-wide btn-primary"
-        >
+        <button onClick={onMint} className="btn btn-wide btn-primary">
           Mint NFT
         </button>
         <p className="mt-5">
@@ -217,9 +155,7 @@ const MultiResourceNftCollection: NextPage = () => {
           <AddResourceToCollection
             value={resourceInput}
             onChange={handleResourceInput}
-            onClick={() => {
-              addResource().then(() => fetchNftCollection())
-            }}
+            onClick={onAddResource}
           />
         )}
       </main>
