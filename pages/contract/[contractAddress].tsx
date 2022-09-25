@@ -20,9 +20,8 @@ import { addResource } from "../../lib/transactions"
 const MultiResourceNftCollection: NextPage = () => {
   const router = useRouter()
   const { contractAddress } = router.query
-  let multiResourceContract: Contract
   const addRecentTransaction = useAddRecentTransaction()
-  const { data: signer, isSuccess } = useSigner()
+  const { data: signer } = useSigner()
   const [currentRmrkDeployment, setCurrentRmrkDeployment] = useState<string>("")
   const [allResourcesData, setAllResourcesData] = useState<string[]>([])
   const [resources, setResources] = useState<string[]>([])
@@ -42,7 +41,11 @@ const MultiResourceNftCollection: NextPage = () => {
         signer,
         contractAddress: currentRmrkDeployment,
         abi: abis.multiResourceAbi,
-      }).then(() => {})
+      }).then(({ allData, allResources, name }) => {
+        setAllResourcesData(allData)
+        setResources(allResources)
+        setCollectionName(name)
+      })
       getOwnedNfts({
         signer,
         contractAddress: currentRmrkDeployment,

@@ -10,7 +10,7 @@ export const fetchNftCollection = async ({ signer, contractAddress, abi }: IProp
   let allData: string[] = [];
   let allResources: string[] = [];
   let name = '';
-  if (signer instanceof Signer) {
+  if (signer instanceof Signer && ethers.utils.isAddress(contractAddress)) {
     const multiResourceContract = new Contract(contractAddress, abi, signer);
     name = await multiResourceContract.name();
     allResources = await multiResourceContract.getAllResources();
