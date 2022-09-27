@@ -1,8 +1,8 @@
 import NftList from "../../components/nft-list"
 import React, { useEffect, useState } from "react"
 import { useRouter } from "next/router"
-import { Contract, ethers, Signer } from "ethers"
-import { useSigner } from "wagmi"
+import { ethers } from "ethers"
+import { useContract, useSigner } from "wagmi"
 import { ConnectButton, useAddRecentTransaction } from "@rainbow-me/rainbowkit"
 import { NextPage } from "next"
 import styles from "../../styles/Home.module.css"
@@ -31,6 +31,11 @@ const MultiResourceNftCollection: NextPage = () => {
   const [ownedNfts, setOwnedNfts] = useState<
     { tokenId: number; owner: string; tokenUri: string }[]
   >([])
+  const multiResourceContract = useContract({
+    addressOrName: currentRmrkDeployment,
+    contractInterface: abis.multiResourceAbi,
+    signerOrProvider: signer,
+  })
 
   useEffect(() => {
     console.log("Loading chain data")
@@ -59,10 +64,9 @@ const MultiResourceNftCollection: NextPage = () => {
 
   const onAddResource = () => {
     addResource({
-      signer,
-      contractAddress: currentRmrkDeployment,
-      abi: abis.multiResourceAbi,
+      contract: multiResourceContract,
       addRecentTransaction,
+      signer,
       resourceInput,
     }).then(() => {
       fetchNftCollection({

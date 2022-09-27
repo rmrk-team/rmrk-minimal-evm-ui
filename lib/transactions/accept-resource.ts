@@ -3,22 +3,24 @@ import { Contract, ethers, Signer } from 'ethers';
 
 interface IProps {
   contract: Contract;
-  resourceInput: string;
+  resourceId: number;
   signer?: ethers.Signer | null;
+  tokenId: string;
   addRecentTransaction: (transaction: NewTransaction) => void;
 }
 
-export const addResource = async ({
-  contract,
+export const acceptResource = async ({
+  resourceId,
   signer,
-  resourceInput,
+  contract,
   addRecentTransaction,
+  tokenId,
 }: IProps) => {
   if (signer instanceof Signer) {
-    const tx = await contract.connect(signer).addResourceEntry(resourceInput);
+    const tx = await contract.connect(signer).acceptResource(tokenId, resourceId);
     addRecentTransaction({
       hash: tx.hash,
-      description: 'Adding a new resource to collection',
+      description: 'Accepting a resource for this NFT',
       confirmations: 1,
     });
     await tx.wait(1);

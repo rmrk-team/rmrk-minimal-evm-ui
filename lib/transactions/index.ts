@@ -4,3 +4,6 @@ export * from './mint-nft';
 export * from './get-collections';
 export * from './add-resource';
 export * from './fetch-nft-collection';
+export * from './accept-resource';
+export * from './reject-resource';
+export * from './add-resource-to-token';

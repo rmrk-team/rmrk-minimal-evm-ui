@@ -8,6 +8,13 @@ import { ConnectButton, useAddRecentTransaction } from "@rainbow-me/rainbowkit"
 import Resource from "../../../components/resource"
 import abis from "../../../abis/abis"
 import AddResourceToCollection from "../../../components/add-resource"
+import { fetchSignleNft } from "../../../lib/transactions/fetch-signle-nft"
+import {
+  acceptResource,
+  addResource,
+  addResourceToToken,
+  rejectResource,
+} from "../../../lib/transactions"
 
 const MultiResourceNft = () => {
   const provider = useProvider()
@@ -26,6 +33,7 @@ const MultiResourceNft = () => {
   const [allResourcesData, setAllResourcesData] = useState<string[]>([])
   const [activeResourcesData, setActiveResourcesData] = useState<string[]>([])
   const [pendingResourcesData, setPendingResourcesData] = useState<string[]>([])
+
   const multiResourceContract = useContract({
     addressOrName: contractAddress as string,
     contractInterface: abis.multiResourceAbi,
@@ -35,99 +43,42 @@ const MultiResourceNft = () => {
   useEffect(() => {
     console.log("getting " + contractAddress + " data for token id: " + tokenId)
     if (Number(tokenId) >= 0) {
-      fetchNft().then((nft) => {
-        setCollectionName(nft.name)
-        setResources(nft.allResources)
-        setActiveResources(nft.activeResources)
-        setPendingResources(nft.pendingResources)
-        setTokenUri(nft.tokenUri)
-      })
+      onFetch()
     }
   }, [contractAddress, tokenId])
 
-  async function fetchNft() {
-    const name: string = await multiResourceContract.name()
-    const tokenUri: string = await multiResourceContract.tokenURI(tokenId)
-    const allResources: string[] = await multiResourceContract.getAllResources()
-    const activeResources: string[] =
-      await multiResourceContract.getActiveResources(tokenId)
-    const pendingResources: string[] =
-      await multiResourceContract.getPendingResources(tokenId)
-    const allData: string[] = []
-    const pendingResourcesData: string[] = []
-    const activeResourcesData: string[] = []
-    for (const r of allResources) {
-      const resourceData = await multiResourceContract.getResource(r)
-      allData.push(resourceData)
-    }
-    for (const r of pendingResources) {
-      const resourceData = await multiResourceContract.getResource(r)
-      pendingResourcesData.push(resourceData)
-    }
-    for (const r of activeResources) {
-      const resourceData = await multiResourceContract.getResource(r)
-      activeResourcesData.push(resourceData)
-    }
-    setAllResourcesData(allData)
-    setPendingResourcesData(pendingResourcesData)
-    setActiveResourcesData(activeResourcesData)
-    return { name, allResources, activeResources, pendingResources, tokenUri }
+  const onFetch = () => {
+    fetchSignleNft({ contract: multiResourceContract, tokenId }).then(
+      ({
+        allData,
+        pendingResourcesData,
+        activeResourcesData,
+        name,
+        allResources,
+        activeResources,
+        pendingResources,
+      }) => {
+        setCollectionName(name)
+        setResources(allResources)
+        setActiveResources(activeResources)
+        setPendingResources(pendingResources)
+        setTokenUri(tokenUri)
+        setAllResourcesData(allData)
+        setPendingResourcesData(pendingResourcesData)
+        setActiveResourcesData(activeResourcesData)
+      }
+    )
   }
 
-  async function addResource() {
-    if (signer instanceof Signer) {
-      const tx = await multiResourceContract
-        .connect(signer)
-        .addResourceEntry(resourceInput)
-      addRecentTransaction({
-        hash: tx.hash,
-        description: "Adding a new resource to collection",
-        confirmations: 1,
-      })
-      await tx.wait(1)
-    }
-  }
-
-  async function rejectResource(resourceId: number) {
-    if (signer instanceof Signer) {
-      const tx = await multiResourceContract
-        .connect(signer)
-        .rejectResource(tokenId, resourceId)
-      addRecentTransaction({
-        hash: tx.hash,
-        description: "Rejecting a resource for this NFT",
-        confirmations: 1,
-      })
-      await tx.wait(1)
-    }
-  }
-
-  async function acceptResource(resourceId: number) {
-    if (signer instanceof Signer) {
-      const tx = await multiResourceContract
-        .connect(signer)
-        .acceptResource(tokenId, resourceId)
-      addRecentTransaction({
-        hash: tx.hash,
-        description: "Accepting a resource for this NFT",
-        confirmations: 1,
-      })
-      await tx.wait(1)
-    }
-  }
-
-  async function addResourceToToken(resourceId: number) {
-    if (signer instanceof Signer) {
-      const tx = await multiResourceContract
-        .connect(signer)
-        .addResourceToToken(tokenId, resourceId, 0)
-      addRecentTransaction({
-        hash: tx.hash,
-        description: "Adding a resource to this NFT",
-        confirmations: 1,
-      })
-      await tx.wait(1)
-    }
+  const onAddResource = () => {
+    addResource({
+      contract: multiResourceContract,
+      addRecentTransaction,
+      signer,
+      resourceInput,
+    }).then(() => {
+      onFetch()
+    })
   }
 
   async function setCustomData(id: number) {
@@ -144,7 +95,7 @@ const MultiResourceNft = () => {
     }
   }
 
-  function handleResourceInput(e: React.ChangeEvent<HTMLInputElement>) {
+  const handleResourceInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     setResourceInput(e.target.value)
   }
 
@@ -199,7 +150,13 @@ const MultiResourceNft = () => {
                 <button
                   className="btn btn-primary ml-2 "
                   onClick={() => {
-                    acceptResource(index).then(() => fetchNft())
+                    acceptResource({
+                      contract: multiResourceContract,
+                      resourceId: index,
+                      signer,
+                      tokenId,
+                      addRecentTransaction,
+                    }).then(() => onFetch())
                   }}
                 >
                   Accept Resource
@@ -207,7 +164,13 @@ const MultiResourceNft = () => {
                 <button
                   className="btn btn-secondary ml-1"
                   onClick={() => {
-                    rejectResource(index).then(() => fetchNft())
+                    rejectResource({
+                      contract: multiResourceContract,
+                      resourceId: index,
+                      signer,
+                      tokenId,
+                      addRecentTransaction,
+                    }).then(() => onFetch())
                   }}
                 >
                   Reject Resource
@@ -231,7 +194,13 @@ const MultiResourceNft = () => {
             <button
               className="btn btn-primary btn-sm ml-2 "
               onClick={() => {
-                addResourceToToken(Number(resourceId)).then(() => fetchNft())
+                addResourceToToken({
+                  signer,
+                  contract: multiResourceContract,
+                  resourceId: Number(resourceId),
+                  tokenId,
+                  addRecentTransaction,
+                }).then(() => onFetch())
               }}
             >
               Add resource to token
@@ -242,9 +211,7 @@ const MultiResourceNft = () => {
       <AddResourceToCollection
         value={resourceInput}
         onChange={handleResourceInput}
-        onClick={() => {
-          addResource().then(() => fetchNft())
-        }}
+        onClick={onAddResource}
       />
 
       <input
